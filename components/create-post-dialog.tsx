@@ -1,0 +1,205 @@
+"use client"
+
+import type React from "react"
+import { useState } from "react"
+import { Plus, Search, Music, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { SpotifyPlayer } from "./spotify-player"
+import { useSpotifySearch } from "@/hooks/use-spotify-search"
+import type { Song } from "@/lib/types"
+import { communities } from "@/lib/communities"
+import { usePosts } from "@/lib/posts-context"
+
+interface CreatePostDialogProps {
+  onCreatePost?: (title: string, content: string, song: Song, theme?: string) => void
+  defaultTheme?: string
+}
+
+export function CreatePostDialog({ onCreatePost, defaultTheme }: CreatePostDialogProps) {
+  const [open, setOpen] = useState(false)
+  const [title, setTitle] = useState("")
+  const [content, setContent] = useState("")
+  const [selectedSong, setSelectedSong] = useState<Song | null>(null)
+  const [selectedTheme, setSelectedTheme] = useState<string | undefined>(defaultTheme)
+  const [searchQuery, setSearchQuery] = useState("")
+
+  const { customCommunities } = usePosts()
+  const allCommunities = [...communities, ...customCommunities]
+
+  const { songs: searchResults, loading, error } = useSpotifySearch(searchQuery, searchQuery.length > 2)
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!title.trim() || !selectedSong) return
+
+    if (onCreatePost) {
+      onCreatePost(title, content, selectedSong, selectedTheme)
+    }
+
+    // Reset form
+    setTitle("")
+    setContent("")
+    setSelectedSong(null)
+    setSelectedTheme(defaultTheme)
+    setSearchQuery("")
+    setOpen(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
+          <Plus className="w-4 h-4 mr-2" />
+          Create Post
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Music className="w-5 h-5 text-purple-500" />
+            Share a Song
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Title */}
+          <div className="space-y-2">
+            <Label htmlFor="title">Post Title</Label>
+            <Input
+              id="title"
+              placeholder="What's special about this song?"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
+          </div>
+
+          {/* Content */}
+          <div className="space-y-2">
+            <Label htmlFor="content">Description (optional)</Label>
+            <Textarea
+              id="content"
+              placeholder="Tell us more about why you love this song..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Choose a Community (optional)</Label>
+            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+              {allCommunities.map((community) => (
+                <button
+                  key={community.id}
+                  type="button"
+                  onClick={() => setSelectedTheme(selectedTheme === community.id ? undefined : community.id)}
+                  className={`p-3 rounded-lg border-2 transition-all text-left ${
+                    selectedTheme === community.id
+                      ? "border-purple-500 bg-purple-50 dark:bg-purple-950"
+                      : "border-border hover:border-muted-foreground"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{community.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium block truncate">{community.name}</span>
+                      {community.isCustom && <span className="text-[10px] text-muted-foreground">Custom</span>}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Song Search */}
+          <div className="space-y-3">
+            <Label>Select a Song</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="Search Spotify for songs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+              {loading && (
+                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
+
+            {searchQuery.length > 0 && searchQuery.length <= 2 && (
+              <p className="text-sm text-muted-foreground">Type at least 3 characters to search...</p>
+            )}
+
+            {error && <p className="text-sm text-red-500">Error searching: {error}</p>}
+
+            {/* Selected Song */}
+            {selectedSong && (
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground mb-2">Selected:</p>
+                <SpotifyPlayer song={selectedSong} size="sm" />
+              </div>
+            )}
+
+            {/* Song Results */}
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {searchResults.map((song) => (
+                <div
+                  key={song.id}
+                  onClick={() => setSelectedSong(song)}
+                  className={`p-2 rounded-lg cursor-pointer transition-colors ${
+                    selectedSong?.id === song.id ? "bg-green-50 border border-green-200" : "hover:bg-muted"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center flex-shrink-0">
+                      {song.imageUrl ? (
+                        <img
+                          src={song.imageUrl || "/placeholder.svg"}
+                          alt={song.title}
+                          className="w-full h-full object-cover rounded"
+                        />
+                      ) : (
+                        <Music className="w-4 h-4 text-white" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{song.title}</p>
+                      <p className="text-muted-foreground text-xs truncate">{song.artist}</p>
+                      {song.album && <p className="text-muted-foreground text-xs truncate opacity-75">{song.album}</p>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {searchQuery.length > 2 && !loading && searchResults.length === 0 && !error && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No songs found. Try a different search term.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Submit */}
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!title.trim() || !selectedSong}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+            >
+              Post
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
