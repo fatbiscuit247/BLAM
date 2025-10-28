@@ -19,7 +19,7 @@ export default function HomePage() {
 
       <div className="container mx-auto px-4 py-6">
         <div className="flex gap-6">
-          <div className="hidden md:block w-64 shrink-0">
+          <div className="w-64 shrink-0">
             <Sidebar />
           </div>
 

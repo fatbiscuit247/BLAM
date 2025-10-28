@@ -21,6 +21,11 @@ export function Sidebar() {
   const pathname = usePathname()
   const { customCommunities } = usePosts()
 
+  console.log("[v0] Sidebar rendering")
+  console.log("[v0] Default communities count:", communities.length)
+  console.log("[v0] Custom communities count:", customCommunities.length)
+  console.log("[v0] Communities data:", communities)
+
   return (
     <aside className="w-64 space-y-4">
       {/* Navigation */}
