@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { getCommunity as getDefaultCommunity } from "@/lib/communities"
 import { usePosts } from "@/lib/posts-context"
+import { useAuth } from "@/lib/auth-context"
 import type { Song } from "@/lib/types"
 import { Users, TrendingUp, Clock } from "lucide-react"
 import { useState, useEffect } from "react"
@@ -16,27 +17,28 @@ export default function CommunityPage() {
   const params = useParams()
   const theme = params.theme as string
   const { posts: allPosts, getPostsByTheme, addPost, getCommunity: getCustomCommunity } = usePosts()
+  const { user, isAuthenticated, isMemberOf, joinCommunity, leaveCommunity } = useAuth()
   const defaultCommunity = getDefaultCommunity(theme)
   const customCommunity = getCustomCommunity(theme)
   const community = defaultCommunity || customCommunity
 
   const [posts, setPosts] = useState(getPostsByTheme(theme))
+  const isMember = isMemberOf(theme)
 
   useEffect(() => {
     setPosts(getPostsByTheme(theme))
   }, [theme, getPostsByTheme, allPosts])
 
   const handleCreatePost = (title: string, content: string, song: Song, postTheme?: string) => {
+    if (!isAuthenticated || !user) {
+      alert("Please sign in to create posts")
+      return
+    }
+
     const newPost = {
       id: Date.now().toString(),
-      userId: "1",
-      user: {
-        id: "1",
-        username: "musiclover42",
-        email: "music@example.com",
-        avatar: "/music-lover-avatar.png",
-        createdAt: new Date("2024-01-15"),
-      },
+      userId: user.id,
+      user: user,
       song,
       title,
       content,
@@ -49,6 +51,19 @@ export default function CommunityPage() {
     }
     addPost(newPost)
     setPosts(getPostsByTheme(theme))
+  }
+
+  const handleToggleMembership = () => {
+    if (!isAuthenticated) {
+      alert("Please sign in to join communities")
+      return
+    }
+
+    if (isMember) {
+      leaveCommunity(theme)
+    } else {
+      joinCommunity(theme)
+    }
   }
 
   if (!community) {
@@ -68,14 +83,11 @@ export default function CommunityPage() {
 
       <div className="container mx-auto px-4 py-6">
         <div className="flex gap-6">
-          {/* Sidebar */}
           <div className="hidden md:block">
             <Sidebar />
           </div>
 
-          {/* Main Content */}
           <main className="flex-1 max-w-2xl">
-            {/* Community Header */}
             <Card className="mb-6 overflow-hidden">
               <div className={`h-24 ${community.color}`} />
               <div className="p-6">
@@ -106,12 +118,13 @@ export default function CommunityPage() {
                       </div>
                     </div>
                   </div>
-                  <Button>Join Community</Button>
+                  <Button onClick={handleToggleMembership} variant={isMember ? "outline" : "default"}>
+                    {isMember ? "Leave" : "Join"}
+                  </Button>
                 </div>
               </div>
             </Card>
 
-            {/* Sort Options */}
             <div className="flex gap-2 mb-4">
               <Button variant="secondary" size="sm">
                 <TrendingUp className="w-4 h-4 mr-2" />
@@ -126,7 +139,6 @@ export default function CommunityPage() {
               </Button>
             </div>
 
-            {/* Posts Feed */}
             <div className="space-y-4">
               {posts.length > 0 ? (
                 posts.map((post) => <PostCard key={post.id} post={post} />)
@@ -141,7 +153,6 @@ export default function CommunityPage() {
             </div>
           </main>
 
-          {/* Right Sidebar */}
           <div className="hidden xl:block w-80">
             <Card className="p-4">
               <h3 className="font-semibold text-sm mb-3">About {community.name}</h3>

@@ -9,6 +9,7 @@ import { VoteButtons } from "./vote-buttons"
 import type { Post } from "@/lib/types"
 import Link from "next/link"
 import { getCommunity } from "@/lib/communities"
+import { usePosts } from "@/lib/posts-context"
 
 interface PostCardProps {
   post: Post
@@ -17,19 +18,26 @@ interface PostCardProps {
 
 export function PostCard({ post, onCommentClick }: PostCardProps) {
   const timeAgo = new Date(post.createdAt).toLocaleDateString()
-  const community = post.theme ? getCommunity(post.theme) : null
+  const { getCommunity: getCustomCommunity } = usePosts()
+  const defaultCommunity = post.theme ? getCommunity(post.theme) : null
+  const customCommunity = post.theme ? getCustomCommunity(post.theme) : null
+  const community = defaultCommunity || customCommunity
 
   return (
     <Card className="p-4 space-y-4 bg-card border-border hover:shadow-md transition-shadow">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={post.user.avatar || "/placeholder.svg"} alt={post.user.username} />
-          <AvatarFallback>{post.user.username[0].toUpperCase()}</AvatarFallback>
-        </Avatar>
+        <Link href={`/profile/${post.user.username}`}>
+          <Avatar className="h-8 w-8 cursor-pointer hover:opacity-80 transition-opacity">
+            <AvatarImage src={post.user.avatar || "/placeholder.svg"} alt={post.user.username} />
+            <AvatarFallback>{post.user.username[0].toUpperCase()}</AvatarFallback>
+          </Avatar>
+        </Link>
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm">u/{post.user.username}</span>
+            <Link href={`/profile/${post.user.username}`}>
+              <span className="font-medium text-sm hover:underline cursor-pointer">u/{post.user.username}</span>
+            </Link>
             {community && (
               <>
                 <span className="text-muted-foreground text-xs">•</span>

@@ -2,8 +2,8 @@
 
 import { useState, forwardRef, useImperativeHandle, useEffect } from "react"
 import { PostCard } from "./post-card"
-import { currentUser } from "@/lib/mock-data"
 import { usePosts } from "@/lib/posts-context"
+import { useAuth } from "@/lib/auth-context"
 import type { Post, Song, MusicTheme } from "@/lib/types"
 
 export type AddNewPostFunction = (title: string, content: string, song: Song, theme?: MusicTheme) => void
@@ -18,6 +18,7 @@ export interface FeedRef {
 
 export const Feed = forwardRef<FeedRef, FeedProps>(({ onNewPost }, ref) => {
   const { posts, addPost, getAllPosts } = usePosts()
+  const { user, isAuthenticated } = useAuth()
   const [displayPosts, setDisplayPosts] = useState<Post[]>([])
 
   useEffect(() => {
@@ -25,10 +26,15 @@ export const Feed = forwardRef<FeedRef, FeedProps>(({ onNewPost }, ref) => {
   }, [posts, getAllPosts])
 
   const addNewPost: AddNewPostFunction = (title: string, content: string, song: Song, theme?: MusicTheme) => {
+    if (!isAuthenticated || !user) {
+      alert("Please sign in to create posts")
+      return
+    }
+
     const newPost: Post = {
-      id: Date.now().toString(), // Simple ID generation
-      userId: currentUser.id,
-      user: currentUser,
+      id: Date.now().toString(),
+      userId: user.id,
+      user: user,
       song,
       title,
       content,
@@ -37,7 +43,7 @@ export const Feed = forwardRef<FeedRef, FeedProps>(({ onNewPost }, ref) => {
       commentCount: 0,
       createdAt: new Date(),
       userVote: null,
-      theme, // Added theme to new posts
+      theme,
     }
 
     addPost(newPost)
@@ -52,7 +58,6 @@ export const Feed = forwardRef<FeedRef, FeedProps>(({ onNewPost }, ref) => {
   }))
 
   const handleCommentClick = (postId: string) => {
-    // In a real app, this would navigate to the post detail page
     console.log("Navigate to post:", postId)
   }
 
@@ -62,7 +67,6 @@ export const Feed = forwardRef<FeedRef, FeedProps>(({ onNewPost }, ref) => {
         <PostCard key={post.id} post={post} onCommentClick={() => handleCommentClick(post.id)} />
       ))}
 
-      {/* Load more placeholder */}
       <div className="text-center py-8">
         <p className="text-muted-foreground text-sm">
           That's all for now! Check back later for more music discoveries.

@@ -1,10 +1,11 @@
 "use client"
 
-import { Home, TrendingUp, Music, Users, Headphones } from "lucide-react"
+import { Home, TrendingUp, Music, Users, Headphones, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { communities } from "@/lib/communities"
 import { usePosts } from "@/lib/posts-context"
+import { useAuth } from "@/lib/auth-context"
 import { CreateCommunityDialog } from "./create-community-dialog"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -20,11 +21,7 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname()
   const { customCommunities } = usePosts()
-
-  console.log("[v0] Sidebar rendering")
-  console.log("[v0] Default communities count:", communities.length)
-  console.log("[v0] Custom communities count:", customCommunities.length)
-  console.log("[v0] Communities data:", communities)
+  const { isMemberOf, isAuthenticated } = useAuth()
 
   return (
     <aside className="w-64 space-y-4">
@@ -48,6 +45,7 @@ export function Sidebar() {
         </nav>
       </Card>
 
+      {/* Communities */}
       <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-sm text-foreground">Music Communities</h3>
@@ -55,17 +53,19 @@ export function Sidebar() {
         <div className="space-y-1">
           {communities.map((community) => {
             const isActive = pathname === `/community/${community.id}`
+            const isMember = isAuthenticated && isMemberOf(community.id)
             return (
               <Button
                 key={community.id}
                 variant={isActive ? "secondary" : "ghost"}
                 size="sm"
-                className="w-full justify-start text-xs h-9"
+                className="w-full justify-start text-xs h-9 relative"
                 asChild
               >
                 <Link href={`/community/${community.id}`}>
                   <span className="mr-2 text-base">{community.icon}</span>
                   <span className="flex-1 text-left">{community.name}</span>
+                  {isMember && <Check className="w-3 h-3 text-green-500 mr-1" />}
                   <span className="text-muted-foreground text-[10px]">
                     {(community.memberCount / 1000).toFixed(1)}k
                   </span>
@@ -77,8 +77,10 @@ export function Sidebar() {
           {customCommunities.length > 0 && (
             <>
               <div className="h-px bg-border my-2" />
+              <p className="text-[10px] text-muted-foreground px-2 py-1">Custom Communities</p>
               {customCommunities.map((community) => {
                 const isActive = pathname === `/community/${community.id}`
+                const isMember = isAuthenticated && isMemberOf(community.id)
                 return (
                   <Button
                     key={community.id}
@@ -90,6 +92,7 @@ export function Sidebar() {
                     <Link href={`/community/${community.id}`}>
                       <span className="mr-2 text-base">{community.icon}</span>
                       <span className="flex-1 text-left">{community.name}</span>
+                      {isMember && <Check className="w-3 h-3 text-green-500 mr-1" />}
                       <span className="text-muted-foreground text-[10px]">
                         {(community.memberCount / 1000).toFixed(1)}k
                       </span>
@@ -106,7 +109,7 @@ export function Sidebar() {
         </div>
       </Card>
 
-      {/* Community Rules */}
+      {/* Community Guidelines */}
       <Card className="p-4">
         <h3 className="font-semibold text-sm mb-3 text-foreground">Community Guidelines</h3>
         <div className="space-y-2 text-xs text-muted-foreground">

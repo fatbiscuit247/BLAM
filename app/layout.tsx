@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { PostsProvider } from "@/lib/posts-context"
+import { AuthProvider } from "@/lib/auth-context"
 import { Suspense } from "react"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
@@ -22,7 +23,9 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} antialiased`}>
       <body>
         <Suspense fallback={<div>Loading...</div>}>
-          <PostsProvider>{children}</PostsProvider>
+          <AuthProvider>
+            <PostsProvider>{children}</PostsProvider>
+          </AuthProvider>
         </Suspense>
       </body>
     </html>

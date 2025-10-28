@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { CreatePostDialog } from "./create-post-dialog"
-import { getCurrentUser } from "@/lib/auth"
+import { useAuth } from "@/lib/auth-context"
+import { AuthDialog } from "./auth-dialog"
+import { useState } from "react"
 import Link from "next/link"
 import type { Song, MusicTheme } from "@/lib/types"
 
@@ -15,7 +17,8 @@ interface HeaderProps {
 }
 
 export function Header({ onCreatePost, defaultTheme }: HeaderProps) {
-  const user = getCurrentUser()
+  const { user, isAuthenticated } = useAuth()
+  const [showAuthDialog, setShowAuthDialog] = useState(false)
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -57,15 +60,15 @@ export function Header({ onCreatePost, defaultTheme }: HeaderProps) {
         <div className="flex items-center gap-3">
           <CreatePostDialog onCreatePost={onCreatePost} defaultTheme={defaultTheme} />
 
-          {user ? (
-            <Link href={`/user/${user.username}`}>
+          {isAuthenticated && user ? (
+            <Link href={`/profile/${user.username}`}>
               <Avatar className="h-8 w-8 cursor-pointer">
                 <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.username} />
                 <AvatarFallback>{user.username[0].toUpperCase()}</AvatarFallback>
               </Avatar>
             </Link>
           ) : (
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setShowAuthDialog(true)}>
               <User className="w-4 h-4 mr-2" />
               Sign In
             </Button>
@@ -76,6 +79,8 @@ export function Header({ onCreatePost, defaultTheme }: HeaderProps) {
           </Button>
         </div>
       </div>
+
+      <AuthDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} />
     </header>
   )
 }
