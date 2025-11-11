@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { PostsProvider } from "@/lib/posts-context"
@@ -12,6 +12,14 @@ export const metadata: Metadata = {
   title: "BLAM - Music Sharing Community",
   description: "Share and discover music with themed communities",
   generator: "v0.app",
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#a855f7",
 }
 
 export default function RootLayout({
