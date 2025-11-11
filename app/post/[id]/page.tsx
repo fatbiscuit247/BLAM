@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
 import { PostCard } from "@/components/post-card"
 import { CommentSection } from "@/components/comment-section"
+import { BottomNav } from "@/components/bottom-nav"
 import { usePosts } from "@/lib/posts-context"
 import Link from "next/link"
 import { useEffect, useState } from "react"
@@ -30,7 +31,7 @@ export default function PostPage({ params }: PostPageProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-16 md:pb-0">
         <Header />
         <div className="container mx-auto px-4 py-6">
           <div className="max-w-4xl mx-auto">
@@ -40,6 +41,7 @@ export default function PostPage({ params }: PostPageProps) {
             </div>
           </div>
         </div>
+        <BottomNav />
       </div>
     )
   }
@@ -49,7 +51,7 @@ export default function PostPage({ params }: PostPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
 
       <div className="container mx-auto px-4 py-6">
@@ -71,6 +73,8 @@ export default function PostPage({ params }: PostPageProps) {
           </div>
         </div>
       </div>
+
+      <BottomNav />
     </div>
   )
 }

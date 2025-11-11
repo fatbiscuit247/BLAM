@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { BottomNav } from "@/components/bottom-nav"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 
@@ -46,7 +47,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
       <div className="mx-auto max-w-2xl p-4 md:p-8">
         <Link href={`/profile/${user.username}`}>
           <Button variant="ghost" className="mb-4">
@@ -103,6 +104,8 @@ export default function SettingsPage() {
           </form>
         </Card>
       </div>
+
+      <BottomNav />
     </div>
   )
 }

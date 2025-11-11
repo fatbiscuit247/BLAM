@@ -1,5 +1,6 @@
 import { TrendingUp, Music, Users, Headphones, Search } from "lucide-react"
 import { Header } from "@/components/header"
+import { BottomNav } from "@/components/bottom-nav"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,7 +12,7 @@ export default function DiscoverPage() {
   const featuredUsers = mockUsers.slice(0, 3)
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
 
       <div className="container mx-auto px-4 py-6">
@@ -148,6 +149,9 @@ export default function DiscoverPage() {
           </div>
         </div>
       </div>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   )
 }

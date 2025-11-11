@@ -4,27 +4,25 @@ import { useRef } from "react"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"
 import { Feed } from "@/components/feed"
+import { BottomNav } from "@/components/bottom-nav"
 import type { AddNewPostFunction } from "@/components/feed"
 
 export default function HomePage() {
   const feedRef = useRef<{ addNewPost: AddNewPostFunction } | null>(null)
 
-  console.log("[v0] HomePage rendering with sidebar")
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header
         onCreatePost={(title, content, song, theme) => feedRef.current?.addNewPost(title, content, song, theme)}
       />
 
       <div className="container mx-auto px-4 py-6">
         <div className="flex gap-6">
-          <div className="w-64 shrink-0">
+          <div className="hidden lg:block w-64 shrink-0">
             <Sidebar />
           </div>
 
-          {/* Main Content */}
-          <main className="flex-1 max-w-2xl">
+          <main className="flex-1 max-w-2xl mx-auto">
             <Feed ref={feedRef} />
           </main>
 
@@ -87,6 +85,8 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      <BottomNav />
     </div>
   )
 }

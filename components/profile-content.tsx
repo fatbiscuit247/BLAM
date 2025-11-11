@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { PostCard } from "@/components/post-card"
+import { BottomNav } from "@/components/bottom-nav"
 import { Music, Calendar } from "lucide-react"
 import Link from "next/link"
 
@@ -20,7 +21,7 @@ export function ProfileContent({ username }: { username: string }) {
 
   if (!profileUser) {
     return (
-      <div className="min-h-screen bg-background p-8">
+      <div className="min-h-screen bg-background p-8 pb-20 md:pb-8">
         <div className="mx-auto max-w-4xl text-center">
           <h1 className="text-2xl font-bold">User not found</h1>
           <p className="mt-2 text-muted-foreground">The user u/{username} does not exist.</p>
@@ -28,6 +29,7 @@ export function ProfileContent({ username }: { username: string }) {
             <Button className="mt-4">Go Home</Button>
           </Link>
         </div>
+        <BottomNav />
       </div>
     )
   }
@@ -39,7 +41,7 @@ export function ProfileContent({ username }: { username: string }) {
   })
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
       <div className="mx-auto max-w-4xl p-4 md:p-8">
         {/* Profile Header */}
         <Card className="p-6 mb-6">
@@ -81,6 +83,8 @@ export function ProfileContent({ username }: { username: string }) {
           )}
         </div>
       </div>
+
+      <BottomNav />
     </div>
   )
 }

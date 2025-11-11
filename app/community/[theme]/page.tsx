@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation"
 import { Header } from "@/components/header"
 import { Sidebar } from "@/components/sidebar"
+import { BottomNav } from "@/components/bottom-nav"
 import { PostCard } from "@/components/post-card"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -68,26 +69,27 @@ export default function CommunityPage() {
 
   if (!community) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-16 md:pb-0">
         <Header onCreatePost={() => {}} />
         <div className="container mx-auto px-4 py-6">
           <p className="text-center text-muted-foreground">Community not found</p>
         </div>
+        <BottomNav />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header onCreatePost={handleCreatePost} defaultTheme={theme} />
 
       <div className="container mx-auto px-4 py-6">
         <div className="flex gap-6">
-          <div className="hidden md:block">
+          <div className="hidden lg:block w-64 shrink-0">
             <Sidebar />
           </div>
 
-          <main className="flex-1 max-w-2xl">
+          <main className="flex-1 max-w-2xl mx-auto lg:mx-0">
             <Card className="mb-6 overflow-hidden">
               <div className={`h-24 ${community.color}`} />
               <div className="p-6">
@@ -186,6 +188,7 @@ export default function CommunityPage() {
           </div>
         </div>
       </div>
+      <BottomNav />
     </div>
   )
 }
