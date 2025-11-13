@@ -7,6 +7,7 @@ import { mockPosts } from "./mock-data"
 interface PostsContextType {
   posts: Post[]
   addPost: (post: Post) => void
+  deletePost: (id: string) => void
   getPost: (id: string) => Post | undefined
   getAllPosts: () => Post[]
   getPostsByTheme: (theme: string) => Post[]
@@ -90,6 +91,10 @@ export function PostsProvider({ children }: { children: ReactNode }) {
     setPosts((prev) => [post, ...prev])
   }
 
+  const deletePost = (id: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== id))
+  }
+
   const getPost = (id: string) => {
     return posts.find((p) => p.id === id)
   }
@@ -115,6 +120,7 @@ export function PostsProvider({ children }: { children: ReactNode }) {
       value={{
         posts,
         addPost,
+        deletePost,
         getPost,
         getAllPosts,
         getPostsByTheme,

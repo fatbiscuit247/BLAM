@@ -1,6 +1,6 @@
 "use client"
 
-import { MessageCircle, Share2, Clock } from "lucide-react"
+import { MessageCircle, Share2, Clock, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -10,6 +10,18 @@ import type { Post } from "@/lib/types"
 import Link from "next/link"
 import { getCommunity } from "@/lib/communities"
 import { usePosts } from "@/lib/posts-context"
+import { useAuth } from "@/lib/auth-context"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface PostCardProps {
   post: Post
@@ -18,10 +30,17 @@ interface PostCardProps {
 
 export function PostCard({ post, onCommentClick }: PostCardProps) {
   const timeAgo = new Date(post.createdAt).toLocaleDateString()
-  const { getCommunity: getCustomCommunity } = usePosts()
+  const { getCommunity: getCustomCommunity, deletePost } = usePosts()
+  const { user } = useAuth()
   const defaultCommunity = post.theme ? getCommunity(post.theme) : null
   const customCommunity = post.theme ? getCustomCommunity(post.theme) : null
   const community = defaultCommunity || customCommunity
+
+  const isAuthor = user?.id === post.user.id
+
+  const handleDelete = () => {
+    deletePost(post.id)
+  }
 
   return (
     <Card className="p-4 space-y-4 bg-card border-border hover:shadow-md transition-shadow">
@@ -56,6 +75,29 @@ export function PostCard({ post, onCommentClick }: PostCardProps) {
             </span>
           </div>
         </div>
+        {isAuthor && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete post?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete your post.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
 
       {/* Title */}

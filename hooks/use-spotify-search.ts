@@ -26,6 +26,15 @@ export function useSpotifySearch(query: string, enabled = true) {
         }
 
         const data = await response.json()
+        console.log(
+          "[v0] Spotify search results:",
+          data.songs?.map((s: Song) => ({
+            title: s.title,
+            artist: s.artist,
+            hasPreview: !!s.previewUrl,
+            previewUrl: s.previewUrl,
+          })),
+        )
         setSongs(data.songs || [])
       } catch (err) {
         setError(err instanceof Error ? err.message : "Search failed")

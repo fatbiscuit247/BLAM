@@ -35,16 +35,6 @@ export function SpotifyPlayer({ song, size = "md" }: SpotifyPlayerProps) {
   }
 
   useEffect(() => {
-    console.log("[v0] SpotifyPlayer song data:", {
-      title: song.title,
-      artist: song.artist,
-      previewUrl: song.previewUrl,
-      spotifyUrl: song.spotifyUrl,
-      hasPreview: !!song.previewUrl,
-    })
-  }, [song])
-
-  useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
 
@@ -66,11 +56,6 @@ export function SpotifyPlayer({ song, size = "md" }: SpotifyPlayerProps) {
   const togglePlay = async () => {
     const audio = audioRef.current
     if (!audio || !song.previewUrl) {
-      console.log("[v0] Cannot play audio:", {
-        hasAudio: !!audio,
-        hasPreviewUrl: !!song.previewUrl,
-        previewUrl: song.previewUrl,
-      })
       return
     }
 
@@ -78,15 +63,12 @@ export function SpotifyPlayer({ song, size = "md" }: SpotifyPlayerProps) {
       if (isPlaying) {
         audio.pause()
         setIsPlaying(false)
-        console.log("[v0] Audio paused")
       } else {
-        console.log("[v0] Attempting to play audio:", song.previewUrl)
         await audio.play()
         setIsPlaying(true)
-        console.log("[v0] Audio playing successfully")
       }
     } catch (error) {
-      console.error("[v0] Audio playback error:", error)
+      console.error("Audio playback error:", error)
       setIsPlaying(false)
     }
   }
@@ -133,8 +115,12 @@ export function SpotifyPlayer({ song, size = "md" }: SpotifyPlayerProps) {
           <p className="text-muted-foreground text-xs truncate opacity-75">{song.album}</p>
         )}
 
-        {/* Progress bar for larger sizes */}
-        {size !== "sm" && duration > 0 && (
+        {size !== "sm" && !song.previewUrl && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">Listen on Spotify</p>
+        )}
+
+        {/* Progress bar for larger sizes when preview is available */}
+        {size !== "sm" && duration > 0 && song.previewUrl && (
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs text-muted-foreground">{formatTime(currentTime)}</span>
             <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
@@ -149,20 +135,33 @@ export function SpotifyPlayer({ song, size = "md" }: SpotifyPlayerProps) {
       </div>
 
       <div className="flex items-center gap-1">
-        {/* Play/Pause button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={togglePlay}
-          disabled={!song.previewUrl}
-          className={`${buttonSize[size]} rounded-full bg-green-500 hover:bg-green-600 text-white disabled:opacity-50`}
-          title={song.previewUrl ? (isPlaying ? "Pause preview" : "Play preview") : "No preview available"}
-        >
-          {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-        </Button>
+        {song.previewUrl ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={togglePlay}
+            className={`${buttonSize[size]} rounded-full bg-green-500 hover:bg-green-600 text-white`}
+            title={isPlaying ? "Pause preview" : "Play 30s preview"}
+          >
+            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+          </Button>
+        ) : (
+          /* Show Spotify link as primary action when no preview */
+          song.spotifyUrl && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={openSpotify}
+              className={`${buttonSize[size]} rounded-full bg-green-500 hover:bg-green-600 text-white`}
+              title="Listen on Spotify"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </Button>
+          )
+        )}
 
-        {/* Spotify link button */}
-        {song.spotifyUrl && size !== "sm" && (
+        {/* Spotify link button when preview is available */}
+        {song.spotifyUrl && song.previewUrl && size !== "sm" && (
           <Button
             variant="ghost"
             size="sm"
