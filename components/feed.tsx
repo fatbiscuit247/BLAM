@@ -32,7 +32,7 @@ export const Feed = forwardRef<FeedRef, FeedProps>(({ onNewPost }, ref) => {
     }
 
     const newPost: Post = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(), // Generate UUID in browser for optimistic UI update
       userId: user.id,
       user: user,
       song,

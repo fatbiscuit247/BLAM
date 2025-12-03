@@ -2,182 +2,172 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import type { User } from "./types"
+import { createBrowserClient } from "./supabase/client"
 
 interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
-  signUp: (username: string, email: string, password: string, avatar?: string) => Promise<void>
-  signIn: (email: string, password: string) => Promise<void>
+  signUp: (username: string) => Promise<void>
   signOut: () => void
   updateProfile: (updates: Partial<User>) => void
   joinedCommunities: string[]
-  joinCommunity: (communityId: string) => void
-  leaveCommunity: (communityId: string) => void
+  joinCommunity: (communityId: string) => Promise<void>
+  leaveCommunity: (communityId: string) => Promise<void>
   isMemberOf: (communityId: string) => boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-const USERS_STORAGE_KEY = "blam_users"
-const CURRENT_USER_STORAGE_KEY = "blam_current_user"
-const MEMBERSHIPS_STORAGE_KEY = "blam_memberships"
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window === "undefined") return null
+  const [user, setUser] = useState<User | null>(null)
+  const [joinedCommunities, setJoinedCommunities] = useState<string[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const supabase = createBrowserClient()
 
-    try {
-      const stored = localStorage.getItem(CURRENT_USER_STORAGE_KEY)
-      if (stored) {
-        return JSON.parse(stored)
-      }
-    } catch (error) {
-      console.error("[v0] Error loading current user:", error)
-    }
-    return null
-  })
-
-  const [joinedCommunities, setJoinedCommunities] = useState<string[]>(() => {
-    if (typeof window === "undefined") return []
-
-    try {
-      const stored = localStorage.getItem(MEMBERSHIPS_STORAGE_KEY)
-      if (stored) {
-        const memberships = JSON.parse(stored)
-        return user ? memberships[user.id] || [] : []
-      }
-    } catch (error) {
-      console.error("[v0] Error loading memberships:", error)
-    }
-    return []
-  })
-
-  // Save current user to localStorage
   useEffect(() => {
-    try {
-      if (user) {
-        localStorage.setItem(CURRENT_USER_STORAGE_KEY, JSON.stringify(user))
-      } else {
-        localStorage.removeItem(CURRENT_USER_STORAGE_KEY)
+    const loadUser = async () => {
+      try {
+        const userId = localStorage.getItem("blam_user_id")
+        if (userId) {
+          const { data: profile } = await supabase.from("users").select("*").eq("id", userId).single()
+
+          if (profile) {
+            setUser({
+              id: profile.id,
+              username: profile.username,
+              email: profile.email || "",
+              avatar: profile.avatar,
+              createdAt: new Date(profile.created_at),
+            })
+
+            // Load memberships
+            const { data: memberships } = await supabase
+              .from("community_memberships")
+              .select("community_id")
+              .eq("user_id", userId)
+
+            if (memberships) {
+              setJoinedCommunities(memberships.map((m) => m.community_id))
+            }
+          }
+        }
+      } catch (error) {
+        console.error("[v0] Error loading user:", error)
+      } finally {
+        setIsLoading(false)
       }
-    } catch (error) {
-      console.error("[v0] Error saving current user:", error)
     }
-  }, [user])
 
-  // Save memberships to localStorage
-  useEffect(() => {
-    if (!user) return
+    loadUser()
+  }, [])
 
+  const signUp = async (username: string) => {
     try {
-      const stored = localStorage.getItem(MEMBERSHIPS_STORAGE_KEY)
-      const allMemberships = stored ? JSON.parse(stored) : {}
-      allMemberships[user.id] = joinedCommunities
-      localStorage.setItem(MEMBERSHIPS_STORAGE_KEY, JSON.stringify(allMemberships))
-    } catch (error) {
-      console.error("[v0] Error saving memberships:", error)
-    }
-  }, [joinedCommunities, user])
+      const { data: existing } = await supabase.from("users").select("username").eq("username", username).single()
 
-  const signUp = async (username: string, email: string, password: string, avatar?: string) => {
-    try {
-      // Get existing users
-      const stored = localStorage.getItem(USERS_STORAGE_KEY)
-      const users = stored ? JSON.parse(stored) : []
-
-      // Check if email already exists
-      if (users.some((u: User) => u.email === email)) {
-        throw new Error("Email already exists")
-      }
-
-      // Check if username already exists
-      if (users.some((u: User) => u.username === username)) {
+      if (existing) {
         throw new Error("Username already taken")
       }
 
-      // Create new user
-      const newUser: User = {
-        id: `user_${Date.now()}`,
+      const newUser = {
         username,
-        email,
-        avatar: avatar || "/music-lover-avatar.png",
-        createdAt: new Date(),
+        email: `${username}@blam.local`,
+        avatar: "/music-lover-avatar.png",
       }
 
-      // Save user
-      users.push(newUser)
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users))
+      const { data, error } = await supabase.from("users").insert(newUser).select().single()
 
-      // Set as current user
-      setUser(newUser)
+      if (error) throw error
+      if (!data) throw new Error("Failed to create user")
+
+      const userObj: User = {
+        id: data.id,
+        username: data.username,
+        email: data.email,
+        avatar: data.avatar,
+        createdAt: new Date(data.created_at),
+      }
+
+      setUser(userObj)
       setJoinedCommunities([])
+      localStorage.setItem("blam_user_id", data.id)
     } catch (error) {
       console.error("[v0] Sign up error:", error)
       throw error
     }
   }
 
-  const signIn = async (email: string, password: string) => {
-    try {
-      const stored = localStorage.getItem(USERS_STORAGE_KEY)
-      const users = stored ? JSON.parse(stored) : []
-
-      const foundUser = users.find((u: User) => u.email === email)
-      if (!foundUser) {
-        throw new Error("Invalid email or password")
-      }
-
-      setUser(foundUser)
-
-      // Load user's memberships
-      const membershipsStored = localStorage.getItem(MEMBERSHIPS_STORAGE_KEY)
-      if (membershipsStored) {
-        const allMemberships = JSON.parse(membershipsStored)
-        setJoinedCommunities(allMemberships[foundUser.id] || [])
-      }
-    } catch (error) {
-      console.error("[v0] Sign in error:", error)
-      throw error
-    }
-  }
-
   const signOut = () => {
+    localStorage.removeItem("blam_user_id")
     setUser(null)
     setJoinedCommunities([])
   }
 
-  const updateProfile = (updates: Partial<User>) => {
+  const updateProfile = async (updates: Partial<User>) => {
     if (!user) return
 
-    const updatedUser = { ...user, ...updates }
-    setUser(updatedUser)
-
-    // Update in users list
     try {
-      const stored = localStorage.getItem(USERS_STORAGE_KEY)
-      const users = stored ? JSON.parse(stored) : []
-      const index = users.findIndex((u: User) => u.id === user.id)
-      if (index !== -1) {
-        users[index] = updatedUser
-        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users))
-      }
+      const { error } = await supabase
+        .from("users")
+        .update({
+          username: updates.username,
+          avatar: updates.avatar,
+        })
+        .eq("id", user.id)
+
+      if (error) throw error
+
+      setUser({ ...user, ...updates })
     } catch (error) {
       console.error("[v0] Error updating profile:", error)
+      throw error
     }
   }
 
-  const joinCommunity = (communityId: string) => {
-    if (!joinedCommunities.includes(communityId)) {
+  const joinCommunity = async (communityId: string) => {
+    if (!user) return
+    if (joinedCommunities.includes(communityId)) return
+
+    try {
+      const { error } = await supabase.from("community_memberships").insert({
+        user_id: user.id,
+        community_id: communityId,
+      })
+
+      if (error) throw error
+
       setJoinedCommunities((prev) => [...prev, communityId])
+    } catch (error) {
+      console.error("[v0] Error joining community:", error)
+      throw error
     }
   }
 
-  const leaveCommunity = (communityId: string) => {
-    setJoinedCommunities((prev) => prev.filter((id) => id !== communityId))
+  const leaveCommunity = async (communityId: string) => {
+    if (!user) return
+
+    try {
+      const { error } = await supabase
+        .from("community_memberships")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("community_id", communityId)
+
+      if (error) throw error
+
+      setJoinedCommunities((prev) => prev.filter((id) => id !== communityId))
+    } catch (error) {
+      console.error("[v0] Error leaving community:", error)
+      throw error
+    }
   }
 
   const isMemberOf = (communityId: string) => {
     return joinedCommunities.includes(communityId)
+  }
+
+  if (isLoading) {
+    return null
   }
 
   return (
@@ -186,7 +176,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isAuthenticated: !!user,
         signUp,
-        signIn,
         signOut,
         updateProfile,
         joinedCommunities,
