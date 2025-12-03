@@ -119,7 +119,7 @@ export function PostCard({ post, onCommentClick }: PostCardProps) {
             orientation="horizontal"
           />
 
-          <Link href={`/post/${post.id}`}>
+          <Link href={`/post/${post.id}#comments`}>
             <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground">
               <MessageCircle className="w-4 h-4" />
               <span className="ml-1 text-xs">{post.commentCount}</span>

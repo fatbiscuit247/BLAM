@@ -1,134 +1,146 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
-import { MessageCircle, Music, Send } from "lucide-react"
+import { MessageCircle, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CommentCard } from "./comment-card"
-import { MusicPlayer } from "./music-player"
-import { mockComments, mockSongs } from "@/lib/mock-data"
-import type { Comment, Song } from "@/lib/types"
+import type { Comment } from "@/lib/types"
+import { useSpotifySearch } from "@/hooks/use-spotify-search"
+import { SpotifySearchResults } from "./spotify-search-results"
+import { usePosts } from "@/lib/posts-context"
+import { useAuth } from "@/lib/auth-context"
+import { useToast } from "@/hooks/use-toast"
 
 interface CommentSectionProps {
   postId: string
 }
 
 export function CommentSection({ postId }: CommentSectionProps) {
-  const [comments] = useState<Comment[]>(mockComments.filter((c) => c.postId === postId))
+  const { getCommentsByPostId, addComment } = usePosts()
+  const { user } = useAuth()
+  const { toast } = useToast()
+  const comments = getCommentsByPostId(postId)
+
   const [newComment, setNewComment] = useState("")
-  const [selectedSong, setSelectedSong] = useState<Song | null>(null)
+  const [selectedSong, setSelectedSong] = useState<any>(null)
   const [songSearch, setSongSearch] = useState("")
   const [showSongPicker, setShowSongPicker] = useState(false)
 
-  const filteredSongs = mockSongs.filter(
-    (song) =>
-      song.title.toLowerCase().includes(songSearch.toLowerCase()) ||
-      song.artist.toLowerCase().includes(songSearch.toLowerCase()),
-  )
+  const { songs, loading } = useSpotifySearch(songSearch, showSongPicker)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const canSubmit = selectedSong && user
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newComment.trim() || !selectedSong) return
 
-    // In a real app, this would create the comment
-    console.log("Creating comment:", { content: newComment, song: selectedSong })
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "You need to be signed in to comment",
+        variant: "destructive",
+      })
+      return
+    }
 
-    // Reset form
-    setNewComment("")
-    setSelectedSong(null)
-    setSongSearch("")
-    setShowSongPicker(false)
+    if (!selectedSong) {
+      toast({
+        title: "Missing information",
+        description: "Please select a song to recommend",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const comment: Comment = {
+        id: crypto.randomUUID(),
+        postId,
+        userId: user.id,
+        user: {
+          id: user.id,
+          username: user.username,
+          avatar: user.avatar || "/placeholder.svg",
+          email: user.email || "",
+          createdAt: new Date(),
+        },
+        song: selectedSong,
+        content: newComment.trim() || "Check out this song!",
+        upvotes: 0,
+        downvotes: 0,
+        createdAt: new Date(),
+        userVote: null,
+      }
+
+      await addComment(comment)
+
+      // Reset form
+      setNewComment("")
+      setSelectedSong(null)
+      setSongSearch("")
+      setShowSongPicker(false)
+
+      toast({
+        title: "Comment added",
+        description: "Your song recommendation has been posted!",
+      })
+    } catch (error) {
+      console.error("[v0] Error adding comment:", error)
+      toast({
+        title: "Error",
+        description: "Failed to add comment. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
-    <div className="space-y-4">
+    <div id="comments" className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2 pb-2 border-b border-border">
         <MessageCircle className="w-4 h-4 text-muted-foreground" />
         <span className="font-medium text-sm">{comments.length} Song Recommendations</span>
       </div>
 
-      {/* Add Comment Form */}
-      <form onSubmit={handleSubmit} className="space-y-4 p-4 bg-muted/20 rounded-lg border border-border/50">
-        <div className="space-y-2">
-          <Label htmlFor="comment">Recommend a similar song</Label>
+      <form onSubmit={handleSubmit} className="space-y-2 p-3 bg-muted/20 rounded-lg border border-border/50">
+        <div className="space-y-1.5">
+          <Label htmlFor="comment" className="text-sm">
+            Recommend a similar song (optional)
+          </Label>
           <Textarea
             id="comment"
             placeholder="Tell us about a song with similar vibes..."
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            rows={3}
+            rows={2}
+            className="text-sm"
           />
         </div>
 
-        {/* Song Selection */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label>Attach a song</Label>
-            <Button type="button" variant="outline" size="sm" onClick={() => setShowSongPicker(!showSongPicker)}>
-              <Music className="w-4 h-4 mr-2" />
-              {selectedSong ? "Change Song" : "Select Song"}
-            </Button>
-          </div>
+        <SpotifySearchResults
+          searchQuery={songSearch}
+          onSearchChange={setSongSearch}
+          selectedSong={selectedSong}
+          onSongSelect={(song) => {
+            setSelectedSong(song)
+            setShowSongPicker(false)
+          }}
+          songs={songs}
+          loading={loading}
+          showPicker={showSongPicker}
+          onTogglePicker={() => setShowSongPicker(!showSongPicker)}
+        />
 
-          {selectedSong && (
-            <div className="p-3 bg-background rounded-lg border border-border">
-              <p className="text-xs text-muted-foreground mb-2">Selected song:</p>
-              <MusicPlayer song={selectedSong} size="sm" />
-            </div>
-          )}
+        {!user && <p className="text-xs text-amber-600">Please sign in to post a recommendation</p>}
 
-          {showSongPicker && (
-            <div className="space-y-3 p-3 bg-background rounded-lg border border-border">
-              <Input
-                placeholder="Search for a song..."
-                value={songSearch}
-                onChange={(e) => setSongSearch(e.target.value)}
-              />
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {filteredSongs.map((song) => (
-                  <div
-                    key={song.id}
-                    onClick={() => {
-                      setSelectedSong(song)
-                      setShowSongPicker(false)
-                    }}
-                    className="p-2 rounded cursor-pointer hover:bg-muted transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center flex-shrink-0">
-                        {song.imageUrl ? (
-                          <img
-                            src={song.imageUrl || "/placeholder.svg"}
-                            alt={song.title}
-                            className="w-full h-full object-cover rounded"
-                          />
-                        ) : (
-                          <Music className="w-3 h-3 text-white" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-xs truncate">{song.title}</p>
-                        <p className="text-muted-foreground text-xs truncate">{song.artist}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end">
+        <div className="flex justify-end pt-1">
           <Button
             type="submit"
-            disabled={!newComment.trim() || !selectedSong}
+            disabled={!canSubmit}
             size="sm"
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50"
           >
             <Send className="w-4 h-4 mr-2" />
             Post Recommendation

@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import type { Post, Community } from "./types"
+import type { Post, Community, Comment } from "./types"
 import { createBrowserClient } from "./supabase/client"
 
 interface PostsContextType {
@@ -14,6 +14,9 @@ interface PostsContextType {
   customCommunities: Community[]
   addCommunity: (community: Community) => Promise<void>
   getCommunity: (id: string) => Community | undefined
+  comments: Comment[]
+  addComment: (comment: Comment) => Promise<void>
+  getCommentsByPostId: (postId: string) => Comment[]
 }
 
 const PostsContext = createContext<PostsContextType | undefined>(undefined)
@@ -21,6 +24,7 @@ const PostsContext = createContext<PostsContextType | undefined>(undefined)
 export function PostsProvider({ children }: { children: ReactNode }) {
   const [posts, setPosts] = useState<Post[]>([])
   const [customCommunities, setCustomCommunities] = useState<Community[]>([])
+  const [comments, setComments] = useState<Comment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const supabase = createBrowserClient()
 
@@ -37,6 +41,23 @@ export function PostsProvider({ children }: { children: ReactNode }) {
           .order("created_at", { ascending: false })
 
         if (postsError) throw postsError
+
+        const { data: commentsData, error: commentsError } = await supabase
+          .from("comments")
+          .select(`
+            *,
+            users:user_id (username, avatar)
+          `)
+          .order("created_at", { ascending: false })
+
+        if (commentsError) throw commentsError
+
+        const commentCountMap: Record<string, number> = {}
+        if (commentsData) {
+          commentsData.forEach((comment: any) => {
+            commentCountMap[comment.post_id] = (commentCountMap[comment.post_id] || 0) + 1
+          })
+        }
 
         if (postsData) {
           const formattedPosts: Post[] = postsData
@@ -65,7 +86,7 @@ export function PostsProvider({ children }: { children: ReactNode }) {
               theme: p.theme,
               upvotes: p.upvotes || 0,
               downvotes: p.downvotes || 0,
-              commentCount: 0,
+              commentCount: commentCountMap[p.id] || 0, // Use actual comment count from map
               createdAt: new Date(p.created_at),
               userVote: null,
             }))
@@ -91,6 +112,38 @@ export function PostsProvider({ children }: { children: ReactNode }) {
           }))
           setCustomCommunities(formattedCommunities)
         }
+
+        if (commentsData) {
+          const formattedComments: Comment[] = commentsData
+            .filter((c: any) => c.users)
+            .map((c: any) => ({
+              id: c.id,
+              postId: c.post_id,
+              userId: c.user_id,
+              user: {
+                id: c.user_id,
+                username: c.users?.username || "Deleted User",
+                avatar: c.users?.avatar || "/placeholder.svg",
+                email: "",
+                createdAt: new Date(),
+              },
+              song: {
+                id: c.id,
+                title: c.song_title,
+                artist: c.song_artist,
+                album: c.song_album,
+                imageUrl: c.album_art,
+                previewUrl: c.preview_url,
+                spotifyUrl: c.spotify_url,
+              },
+              content: c.content,
+              upvotes: 0,
+              downvotes: 0,
+              createdAt: new Date(c.created_at),
+              userVote: null,
+            }))
+          setComments(formattedComments)
+        }
       } catch (error) {
         console.error("[v0] Error loading data:", error)
       } finally {
@@ -107,8 +160,16 @@ export function PostsProvider({ children }: { children: ReactNode }) {
       })
       .subscribe()
 
+    const commentsSubscription = supabase
+      .channel("comments_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "comments" }, () => {
+        loadData()
+      })
+      .subscribe()
+
     return () => {
       postsSubscription.unsubscribe()
+      commentsSubscription.unsubscribe()
     }
   }, [])
 
@@ -227,6 +288,71 @@ export function PostsProvider({ children }: { children: ReactNode }) {
     return customCommunities.find((c) => c.id === id)
   }
 
+  const addComment = async (comment: Comment) => {
+    try {
+      const { data, error } = await supabase
+        .from("comments")
+        .insert({
+          post_id: comment.postId,
+          user_id: comment.userId,
+          content: comment.content,
+          song_title: comment.song.title,
+          song_artist: comment.song.artist,
+          song_album: comment.song.album,
+          album_art: comment.song.imageUrl,
+          preview_url: comment.song.previewUrl,
+          spotify_url: comment.song.spotifyUrl,
+        })
+        .select(`
+          *,
+          users:user_id (username, avatar)
+        `)
+        .single()
+
+      if (error) throw error
+
+      if (data) {
+        const formattedComment: Comment = {
+          id: data.id,
+          postId: data.post_id,
+          userId: data.user_id,
+          user: {
+            id: data.user_id,
+            username: data.users?.username || "Unknown",
+            avatar: data.users?.avatar || "/placeholder.svg",
+            email: "",
+            createdAt: new Date(),
+          },
+          song: {
+            id: data.id,
+            title: data.song_title,
+            artist: data.song_artist,
+            album: data.song_album,
+            imageUrl: data.album_art,
+            previewUrl: data.preview_url,
+            spotifyUrl: data.spotify_url,
+          },
+          content: data.content,
+          upvotes: 0,
+          downvotes: 0,
+          createdAt: new Date(data.created_at),
+          userVote: null,
+        }
+
+        setComments((prev) => [formattedComment, ...prev])
+
+        setPosts((prev) => prev.map((p) => (p.id === comment.postId ? { ...p, commentCount: p.commentCount + 1 } : p)))
+      }
+    } catch (error) {
+      console.error("[v0] Error adding comment:", error)
+      throw error
+    }
+  }
+
+  const getCommentsByPostId = (postId: string) => {
+    return comments.filter((c) => c.postId === postId)
+  }
+
   if (isLoading) {
     return null // Or a loading spinner
   }
@@ -243,6 +369,9 @@ export function PostsProvider({ children }: { children: ReactNode }) {
         customCommunities,
         addCommunity,
         getCommunity,
+        comments,
+        addComment,
+        getCommentsByPostId,
       }}
     >
       {children}
