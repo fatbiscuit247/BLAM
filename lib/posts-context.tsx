@@ -39,27 +39,36 @@ export function PostsProvider({ children }: { children: ReactNode }) {
         if (postsError) throw postsError
 
         if (postsData) {
-          const formattedPosts: Post[] = postsData.map((p: any) => ({
-            id: p.id,
-            title: p.title,
-            content: p.content,
-            author: p.users.username,
-            authorId: p.user_id,
-            authorAvatar: p.users.avatar,
-            timestamp: new Date(p.created_at),
-            upvotes: p.upvotes,
-            downvotes: p.downvotes,
-            comments: 0, // We'll calculate this separately if needed
-            song: {
-              title: p.song_title,
-              artist: p.song_artist,
-              album: p.song_album,
-              albumArt: p.album_art,
-              previewUrl: p.preview_url,
-              spotifyUrl: p.spotify_url,
-            },
-            theme: p.theme,
-          }))
+          const formattedPosts: Post[] = postsData
+            .filter((p: any) => p.users) // Filter out posts with deleted users
+            .map((p: any) => ({
+              id: p.id,
+              title: p.title,
+              content: p.content,
+              userId: p.user_id,
+              user: {
+                id: p.user_id,
+                username: p.users?.username || "Deleted User",
+                avatar: p.users?.avatar || "/placeholder.svg",
+                email: "",
+                createdAt: new Date(),
+              },
+              song: {
+                id: p.id,
+                title: p.song_title,
+                artist: p.song_artist,
+                album: p.song_album,
+                imageUrl: p.album_art,
+                previewUrl: p.preview_url,
+                spotifyUrl: p.spotify_url,
+              },
+              theme: p.theme,
+              upvotes: p.upvotes || 0,
+              downvotes: p.downvotes || 0,
+              commentCount: 0,
+              createdAt: new Date(p.created_at),
+              userVote: null,
+            }))
           setPosts(formattedPosts)
         }
 
@@ -78,7 +87,7 @@ export function PostsProvider({ children }: { children: ReactNode }) {
             description: c.description,
             icon: c.icon,
             color: c.color,
-            memberCount: c.member_count,
+            memberCount: c.member_count || 0,
           }))
           setCustomCommunities(formattedCommunities)
         }
@@ -137,8 +146,8 @@ export function PostsProvider({ children }: { children: ReactNode }) {
           userId: data.user_id,
           user: {
             id: data.user_id,
-            username: data.users.username,
-            avatar: data.users.avatar,
+            username: data.users?.username || "Unknown",
+            avatar: data.users?.avatar || "/placeholder.svg",
             email: "",
             createdAt: new Date(),
           },
@@ -152,8 +161,8 @@ export function PostsProvider({ children }: { children: ReactNode }) {
             spotifyUrl: data.spotify_url,
           },
           theme: data.theme,
-          upvotes: data.upvotes,
-          downvotes: data.downvotes,
+          upvotes: data.upvotes || 0,
+          downvotes: data.downvotes || 0,
           commentCount: 0,
           createdAt: new Date(data.created_at),
           userVote: null,

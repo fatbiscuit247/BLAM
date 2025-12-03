@@ -36,7 +36,7 @@ export function PostCard({ post, onCommentClick }: PostCardProps) {
   const customCommunity = post.theme ? getCustomCommunity(post.theme) : null
   const community = defaultCommunity || customCommunity
 
-  const isAuthor = user?.id === post.user.id
+  const isAuthor = user?.id === post.user?.id
 
   const handleDelete = () => {
     deletePost(post.id)

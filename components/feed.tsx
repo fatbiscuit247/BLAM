@@ -27,6 +27,7 @@ export const Feed = forwardRef<FeedRef, FeedProps>(({ onNewPost }, ref) => {
 
   const addNewPost: AddNewPostFunction = (title: string, content: string, song: Song, theme?: MusicTheme) => {
     if (!isAuthenticated || !user) {
+      console.error("[v0] Cannot create post: user not authenticated")
       alert("Please sign in to create posts")
       return
     }
@@ -46,7 +47,10 @@ export const Feed = forwardRef<FeedRef, FeedProps>(({ onNewPost }, ref) => {
       theme,
     }
 
-    addPost(newPost)
+    addPost(newPost).catch((error) => {
+      console.error("[v0] Error creating post:", error)
+      alert("Failed to create post. Please try again.")
+    })
 
     if (onNewPost) {
       onNewPost(newPost)
