@@ -103,11 +103,11 @@ export function PostsProvider({ children }: { children: ReactNode }) {
                 spotifyUrl: p.spotify_url,
               },
               theme: p.theme,
-              upvotes: p.upvotes || 0,
-              downvotes: p.downvotes || 0,
+              upvotes: p.upvotes ?? 0,
+              downvotes: p.downvotes ?? 0,
               commentCount: commentCountMap[p.id] || 0,
               createdAt: new Date(p.created_at),
-              userVote: userVotesMap[p.id] || null, // Set user's vote status from database
+              userVote: userVotesMap[p.id] || null,
             }))
           setPosts(formattedPosts)
         }
