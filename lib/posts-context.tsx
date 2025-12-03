@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import type { Post, Community, Comment } from "./types"
 import { createBrowserClient } from "./supabase/client"
+import { useAuth } from "./auth-context"
 
 interface PostsContextType {
   posts: Post[]
@@ -17,6 +18,7 @@ interface PostsContextType {
   comments: Comment[]
   addComment: (comment: Comment) => Promise<void>
   getCommentsByPostId: (postId: string) => Comment[]
+  voteOnPost: (postId: string, voteType: "up" | "down") => Promise<void>
 }
 
 const PostsContext = createContext<PostsContextType | undefined>(undefined)
@@ -26,7 +28,9 @@ export function PostsProvider({ children }: { children: ReactNode }) {
   const [customCommunities, setCustomCommunities] = useState<Community[]>([])
   const [comments, setComments] = useState<Comment[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [votingPosts, setVotingPosts] = useState<Set<string>>(new Set())
   const supabase = createBrowserClient()
+  const { user } = useAuth()
 
   useEffect(() => {
     const loadData = async () => {
@@ -42,6 +46,7 @@ export function PostsProvider({ children }: { children: ReactNode }) {
 
         if (postsError) throw postsError
 
+        // Load comments
         const { data: commentsData, error: commentsError } = await supabase
           .from("comments")
           .select(`
@@ -51,6 +56,20 @@ export function PostsProvider({ children }: { children: ReactNode }) {
           .order("created_at", { ascending: false })
 
         if (commentsError) throw commentsError
+
+        const userVotesMap: Record<string, "up" | "down"> = {}
+        if (user) {
+          const { data: votesData, error: votesError } = await supabase
+            .from("votes")
+            .select("post_id, vote_type")
+            .eq("user_id", user.id)
+
+          if (!votesError && votesData) {
+            votesData.forEach((vote: any) => {
+              userVotesMap[vote.post_id] = vote.vote_type
+            })
+          }
+        }
 
         const commentCountMap: Record<string, number> = {}
         if (commentsData) {
@@ -86,9 +105,9 @@ export function PostsProvider({ children }: { children: ReactNode }) {
               theme: p.theme,
               upvotes: p.upvotes || 0,
               downvotes: p.downvotes || 0,
-              commentCount: commentCountMap[p.id] || 0, // Use actual comment count from map
+              commentCount: commentCountMap[p.id] || 0,
               createdAt: new Date(p.created_at),
-              userVote: null,
+              userVote: userVotesMap[p.id] || null, // Set user's vote status from database
             }))
           setPosts(formattedPosts)
         }
@@ -167,11 +186,19 @@ export function PostsProvider({ children }: { children: ReactNode }) {
       })
       .subscribe()
 
+    const votesSubscription = supabase
+      .channel("votes_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, () => {
+        loadData()
+      })
+      .subscribe()
+
     return () => {
       postsSubscription.unsubscribe()
       commentsSubscription.unsubscribe()
+      votesSubscription.unsubscribe()
     }
-  }, [])
+  }, [user]) // Updated dependency to user
 
   const addPost = async (post: Post) => {
     try {
@@ -353,6 +380,148 @@ export function PostsProvider({ children }: { children: ReactNode }) {
     return comments.filter((c) => c.postId === postId)
   }
 
+  const voteOnPost = async (postId: string, voteType: "up" | "down") => {
+    if (!user) {
+      console.log("[v0] No user logged in, cannot vote")
+      return
+    }
+
+    if (votingPosts.has(postId)) {
+      console.log("[v0] Vote already in progress for post:", postId)
+      return
+    }
+
+    console.log("[v0] Starting vote:", { postId, voteType, userId: user.id })
+
+    const post = posts.find((p) => p.id === postId)
+    if (!post) {
+      console.log("[v0] Post not found:", postId)
+      return
+    }
+
+    setVotingPosts((prev) => {
+      const next = new Set(prev)
+      next.add(postId)
+      console.log("[v0] Added to voting posts, now:", Array.from(next))
+      return next
+    })
+
+    try {
+      // Check if user already has a vote
+      const { data: existingVote, error: voteCheckError } = await supabase
+        .from("votes")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("post_id", postId)
+        .maybeSingle() // Use maybeSingle instead of single to handle no results
+
+      if (voteCheckError) {
+        console.error("[v0] Error checking existing vote:", voteCheckError)
+        throw voteCheckError
+      }
+
+      console.log("[v0] Existing vote:", existingVote)
+
+      let upvoteChange = 0
+      let downvoteChange = 0
+      let newUserVote: "up" | "down" | null = null
+
+      if (existingVote) {
+        // User already voted
+        if (existingVote.vote_type === voteType) {
+          console.log("[v0] Removing vote (same button clicked)")
+          const { error: deleteError } = await supabase
+            .from("votes")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("post_id", postId)
+
+          if (deleteError) throw deleteError
+
+          if (voteType === "up") {
+            upvoteChange = -1
+          } else {
+            downvoteChange = -1
+          }
+          newUserVote = null
+        } else {
+          console.log("[v0] Changing vote (opposite button clicked)")
+          const { error: updateError } = await supabase
+            .from("votes")
+            .update({ vote_type: voteType })
+            .eq("user_id", user.id)
+            .eq("post_id", postId)
+
+          if (updateError) throw updateError
+
+          if (voteType === "up") {
+            upvoteChange = 1
+            downvoteChange = -1
+          } else {
+            upvoteChange = -1
+            downvoteChange = 1
+          }
+          newUserVote = voteType
+        }
+      } else {
+        console.log("[v0] Adding new vote")
+        const { error: insertError } = await supabase.from("votes").insert({
+          user_id: user.id,
+          post_id: postId,
+          vote_type: voteType,
+        })
+
+        if (insertError) throw insertError
+
+        if (voteType === "up") {
+          upvoteChange = 1
+        } else {
+          downvoteChange = 1
+        }
+        newUserVote = voteType
+      }
+
+      console.log("[v0] Vote changes:", { upvoteChange, downvoteChange, newUserVote })
+
+      const newUpvotes = Math.max(0, (post.upvotes || 0) + upvoteChange)
+      const newDownvotes = Math.max(0, (post.downvotes || 0) + downvoteChange)
+
+      const { error: updatePostError } = await supabase
+        .from("posts")
+        .update({
+          upvotes: newUpvotes,
+          downvotes: newDownvotes,
+        })
+        .eq("id", postId)
+
+      if (updatePostError) throw updatePostError
+
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                upvotes: newUpvotes,
+                downvotes: newDownvotes,
+                userVote: newUserVote,
+              }
+            : p,
+        ),
+      )
+
+      console.log("[v0] Vote completed successfully")
+    } catch (error) {
+      console.error("[v0] Error voting on post:", error)
+    } finally {
+      setVotingPosts((prev) => {
+        const next = new Set(prev)
+        next.delete(postId)
+        console.log("[v0] Removed from voting posts, now:", Array.from(next))
+        return next
+      })
+    }
+  }
+
   if (isLoading) {
     return null // Or a loading spinner
   }
@@ -372,6 +541,7 @@ export function PostsProvider({ children }: { children: ReactNode }) {
         comments,
         addComment,
         getCommentsByPostId,
+        voteOnPost, // Export the voteOnPost function
       }}
     >
       {children}

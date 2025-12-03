@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
 import { ChevronUp, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useState } from "react"
 
 interface VoteButtonsProps {
   upvotes: number
@@ -13,40 +13,20 @@ interface VoteButtonsProps {
 }
 
 export function VoteButtons({ upvotes, downvotes, userVote, onVote, orientation = "vertical" }: VoteButtonsProps) {
-  const [currentVote, setCurrentVote] = useState(userVote)
-  const [currentUpvotes, setCurrentUpvotes] = useState(upvotes)
-  const [currentDownvotes, setCurrentDownvotes] = useState(downvotes)
+  const [isVoting, setIsVoting] = useState(false)
 
-  const handleVote = (type: "up" | "down") => {
-    let newUpvotes = currentUpvotes
-    let newDownvotes = currentDownvotes
-    let newVote: "up" | "down" | null = type
+  const handleVote = async (type: "up" | "down") => {
+    if (isVoting) return
 
-    // Remove previous vote
-    if (currentVote === "up") {
-      newUpvotes--
-    } else if (currentVote === "down") {
-      newDownvotes--
+    setIsVoting(true)
+    try {
+      await onVote?.(type)
+    } finally {
+      setTimeout(() => setIsVoting(false), 300)
     }
-
-    // Add new vote or remove if same
-    if (currentVote === type) {
-      newVote = null
-    } else {
-      if (type === "up") {
-        newUpvotes++
-      } else {
-        newDownvotes++
-      }
-    }
-
-    setCurrentVote(newVote)
-    setCurrentUpvotes(newUpvotes)
-    setCurrentDownvotes(newDownvotes)
-    onVote?.(type)
   }
 
-  const score = currentUpvotes - currentDownvotes
+  const score = upvotes - downvotes
 
   if (orientation === "horizontal") {
     return (
@@ -55,19 +35,21 @@ export function VoteButtons({ upvotes, downvotes, userVote, onVote, orientation 
           variant="ghost"
           size="sm"
           onClick={() => handleVote("up")}
-          className={`h-8 px-2 ${currentVote === "up" ? "text-orange-500 bg-orange-50" : "text-muted-foreground hover:text-orange-500"}`}
+          disabled={isVoting}
+          className={`h-8 px-2 ${userVote === "up" ? "text-orange-500 bg-orange-50" : "text-muted-foreground hover:text-orange-500"}`}
         >
           <ChevronUp className="w-4 h-4" />
-          <span className="ml-1 text-xs">{currentUpvotes}</span>
+          <span className="ml-1 text-xs">{upvotes}</span>
         </Button>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => handleVote("down")}
-          className={`h-8 px-2 ${currentVote === "down" ? "text-blue-500 bg-blue-50" : "text-muted-foreground hover:text-blue-500"}`}
+          disabled={isVoting}
+          className={`h-8 px-2 ${userVote === "down" ? "text-blue-500 bg-blue-50" : "text-muted-foreground hover:text-blue-500"}`}
         >
           <ChevronDown className="w-4 h-4" />
-          <span className="ml-1 text-xs">{currentDownvotes}</span>
+          <span className="ml-1 text-xs">{downvotes}</span>
         </Button>
       </div>
     )
@@ -79,7 +61,8 @@ export function VoteButtons({ upvotes, downvotes, userVote, onVote, orientation 
         variant="ghost"
         size="sm"
         onClick={() => handleVote("up")}
-        className={`h-8 w-8 p-0 ${currentVote === "up" ? "text-orange-500 bg-orange-50" : "text-muted-foreground hover:text-orange-500"}`}
+        disabled={isVoting}
+        className={`h-8 w-8 p-0 ${userVote === "up" ? "text-orange-500 bg-orange-50" : "text-muted-foreground hover:text-orange-500"}`}
       >
         <ChevronUp className="w-4 h-4" />
       </Button>
@@ -92,7 +75,8 @@ export function VoteButtons({ upvotes, downvotes, userVote, onVote, orientation 
         variant="ghost"
         size="sm"
         onClick={() => handleVote("down")}
-        className={`h-8 w-8 p-0 ${currentVote === "down" ? "text-blue-500 bg-blue-50" : "text-muted-foreground hover:text-blue-500"}`}
+        disabled={isVoting}
+        className={`h-8 w-8 p-0 ${userVote === "down" ? "text-blue-500 bg-blue-50" : "text-muted-foreground hover:text-blue-500"}`}
       >
         <ChevronDown className="w-4 h-4" />
       </Button>

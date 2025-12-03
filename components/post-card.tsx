@@ -30,7 +30,7 @@ interface PostCardProps {
 
 export function PostCard({ post, onCommentClick }: PostCardProps) {
   const timeAgo = new Date(post.createdAt).toLocaleDateString()
-  const { getCommunity: getCustomCommunity, deletePost } = usePosts()
+  const { getCommunity: getCustomCommunity, deletePost, voteOnPost } = usePosts() // Add voteOnPost
   const { user } = useAuth()
   const defaultCommunity = post.theme ? getCommunity(post.theme) : null
   const customCommunity = post.theme ? getCustomCommunity(post.theme) : null
@@ -40,6 +40,10 @@ export function PostCard({ post, onCommentClick }: PostCardProps) {
 
   const handleDelete = () => {
     deletePost(post.id)
+  }
+
+  const handleVote = (type: "up" | "down") => {
+    voteOnPost(post.id, type)
   }
 
   return (
@@ -116,6 +120,7 @@ export function PostCard({ post, onCommentClick }: PostCardProps) {
             upvotes={post.upvotes}
             downvotes={post.downvotes}
             userVote={post.userVote}
+            onVote={handleVote}
             orientation="horizontal"
           />
 
